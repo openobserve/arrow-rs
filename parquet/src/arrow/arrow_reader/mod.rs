@@ -190,7 +190,7 @@ impl<T> ArrowReaderBuilder<T> {
 #[derive(Debug, Clone, Default)]
 pub struct ArrowReaderOptions {
     skip_arrow_metadata: bool,
-    pub(crate) page_index: bool, 
+    pub(crate) page_index: bool,
 }
 
 impl ArrowReaderOptions {
