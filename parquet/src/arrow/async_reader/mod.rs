@@ -110,9 +110,7 @@ use crate::file::footer::{decode_footer, decode_metadata};
 use crate::file::metadata::{ParquetMetaData, RowGroupMetaData};
 use crate::file::reader::{ChunkReader, Length, SerializedPageReader};
 use crate::file::FOOTER_SIZE;
-use crate::format::{
-    BloomFilterAlgorithm, BloomFilterCompression, BloomFilterHash, PageLocation,
-};
+use crate::format::PageLocation;
 
 mod metadata;
 pub use metadata::*;
@@ -308,20 +306,13 @@ impl<T: AsyncFileReader + Send + 'static> ParquetRecordBatchStreamBuilder<T> {
         &mut self,
         row_group_idx: usize,
         column_idx: usize,
-        // ) -> BoxFuture<'_, Result<Option<Sbbf>>> {
     ) -> Result<Option<Sbbf>> {
         let metadata = self.metadata.row_group(row_group_idx);
-        let column = metadata.column(column_idx);
-
-        let offset: u64 = if let Some(offset) = column.bloom_filter_offset() {
-            match offset.try_into() {
-                Err(_) => {
-                    return Err(ParquetError::General(
-                        "Bloom filter offset is invalid".to_string(),
-                    ))
-                }
-                Ok(offset) => offset,
-            }
+        let column_metadata = metadata.column(column_idx);
+        let offset: usize = if let Some(offset) = column_metadata.bloom_filter_offset() {
+            offset.try_into().map_err(|_| {
+                ParquetError::General("Bloom filter offset is invalid".to_string())
+            })?
         } else {
             return Ok(None);
         };
@@ -329,36 +320,20 @@ impl<T: AsyncFileReader + Send + 'static> ParquetRecordBatchStreamBuilder<T> {
         let buffer = self
             .input
             .0
-            .get_bytes(offset as usize..offset as usize + SBBF_HEADER_SIZE_ESTIMATE)
+            .get_bytes(offset..offset + SBBF_HEADER_SIZE_ESTIMATE)
             .await
             .unwrap();
         let (header, length) = read_bloom_filter_header_and_length(buffer)?;
-        let (header, bitset_offset) = (header, offset + length);
+        let (header, bitset_offset) = (header, offset + length as usize);
 
-        match header.algorithm {
-            BloomFilterAlgorithm::BLOCK(_) => {
-                // this match exists to future proof the singleton algorithm enum
-            }
-        }
-        match header.compression {
-            BloomFilterCompression::UNCOMPRESSED(_) => {
-                // this match exists to future proof the singleton compression enum
-            }
-        }
-        match header.hash {
-            BloomFilterHash::XXHASH(_) => {
-                // this match exists to future proof the singleton hash enum
-            }
-        }
         // length in bytes
         let length: usize = header.num_bytes.try_into().map_err(|_| {
             ParquetError::General("Bloom filter length is invalid".to_string())
         })?;
-
         let bitset = self
             .input
             .0
-            .get_bytes(bitset_offset as usize..bitset_offset as usize + length)
+            .get_bytes(bitset_offset..bitset_offset + length)
             .await?;
         Ok(Some(Sbbf::new(&bitset)))
     }
