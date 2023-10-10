@@ -16,18 +16,13 @@
 // under the License.
 
 use crate::arrow::async_reader::AsyncFileReader;
-use crate::bloom_filter::{
-    read_bloom_filter_header_and_length, Sbbf, SBBF_HEADER_SIZE_ESTIMATE,
-};
 use crate::errors::{ParquetError, Result};
 use crate::file::footer::{decode_footer, read_metadata};
-use crate::file::metadata::ColumnChunkMetaData;
 use crate::file::metadata::ParquetMetaData;
 use crate::file::page_index::index::Index;
 use crate::file::page_index::index_reader::{
     acc_range, decode_column_index, decode_offset_index,
 };
-use crate::format::{BloomFilterAlgorithm, BloomFilterCompression, BloomFilterHash};
 use bytes::Bytes;
 use futures::future::BoxFuture;
 use futures::FutureExt;
