@@ -302,7 +302,11 @@ impl<T: AsyncFileReader + Send + 'static> ParquetRecordBatchStreamBuilder<T> {
         Self::new_builder(AsyncReader(input), metadata)
     }
 
-    pub async fn get_row_group_bloom_filter(
+    /// Read bloom filter for a column in a row group
+    /// Returns `None` if the column does not have a bloom filter
+    /// 
+    /// We should call this function after other forms pruning, such as projection and predicate pushdown.
+    pub async fn get_row_group_column_bloom_filter(
         &mut self,
         row_group_idx: usize,
         column_idx: usize,
