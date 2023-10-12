@@ -87,14 +87,25 @@ fn main() {
                 .expect("Unable to read row group");
             if let Some(sbbf) = row_group_reader.get_column_bloom_filter(column_index) {
                 args.values.iter().for_each(|value| {
+                    let ret = if let Ok(v) = value.parse::<bool>() {
+                        sbbf.check(&v)
+                    } else if let Ok(v) = value.parse::<i16>() {
+                        sbbf.check(&v)
+                    } else if let Ok(v) = value.parse::<i32>() {
+                        sbbf.check(&v)
+                    } else if let Ok(v) = value.parse::<i64>() {
+                        sbbf.check(&v)
+                    } else if let Ok(v) = value.parse::<f32>() {
+                        sbbf.check(&v)
+                    } else if let Ok(v) = value.parse::<f64>() {
+                        sbbf.check(&v)
+                    } else {
+                        sbbf.check(&value.as_str())
+                    };
                     println!(
                         "Value {} is {} in bloom filter",
                         value,
-                        if sbbf.check(&value.as_str()) {
-                            "present"
-                        } else {
-                            "absent"
-                        }
+                        if ret { "present" } else { "absent" }
                     )
                 });
             } else {
